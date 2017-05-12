@@ -1,0 +1,82 @@
+/*
+ * Copyright 2017 Arth Patel (PioneerAxon) <arth.svnit@gmail.com>
+ *
+ * This file is part of MallocTrack.
+ *
+ * MallocTrack is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MallocTrack is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+#include <assert.h>
+#include <inttypes.h>
+#include <string.h>
+
+#include "ring_buffer.h"
+
+static const int32_t ring_buffer_size_bytes_exp = 24; //16 MiB
+
+static void* ring_buffer_ = NULL;
+static uint64_t ring_buffer_size_ = 0;
+static uint64_t ring_buffer_offset_mask_ = 0;
+
+static uint64_t ring_buffer_write_offset_ = 0;
+static uint64_t ring_buffer_flush_offset_ = 0;
+static uint64_t ring_buffer_active_bytes_ = 0;
+
+static inline uint64_t max_u64(uint64_t a, uint64_t b)
+{
+	return a > b ? a : b;
+}
+
+static inline uint64_t min_u64(uint64_t a, uint64_t b)
+{
+	return a < b ? a : b;
+}
+
+void ring_buffer_new()
+{
+	assert(ring_buffer_ == NULL);
+	ring_buffer_size_ = 1 << ring_buffer_size_bytes_exp;
+	ring_buffer_offset_mask_ = ring_buffer_size_ - 1;
+	ring_buffer_ = mt_malloc (ring_buffer_size_);
+	assert(ring_buffer_);
+	DEBUG("Allocated ring buffer of size %llu\n", ring_buffer_size_);
+}
+
+void ring_buffer_delete()
+{
+	assert(ring_buffer_);
+	mt_free(ring_buffer_);
+	ring_buffer_size_ = 0;
+	ring_buffer_ = NULL;
+}
+
+void ring_buffer_insert_lock_free(malloc_track_record_t *record)
+{
+	uint32_t size = malloc_track_record_t_size(record);
+	uint32_t bytes_left = size;
+	uint64_t write_offset = __sync_fetch_and_add(&ring_buffer_write_offset_, size);
+	__sync_fetch_and_and(&ring_buffer_write_offset_, ring_buffer_offset_mask_);
+
+	DEBUG_ASSERT(size < ring_buffer_size_);
+
+	while (bytes_left)
+	{
+		uint32_t bytes_to_write = min_u64(ring_buffer_size_ - write_offset, bytes_left);
+		memcpy(ring_buffer_ + write_offset, record, bytes_to_write);
+		bytes_left -= bytes_to_write;
+	}
+	uint64_t active_bytes = __sync_fetch_and_add(&ring_buffer_active_bytes_, size);
+	DEBUG("Active bytes in ring buffer : %llu\n", active_bytes);
+}

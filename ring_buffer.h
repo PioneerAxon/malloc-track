@@ -18,25 +18,15 @@
  *
  */
 
-#ifndef __MALLOC_TRACK_H__
-#define __MALLOC_TRACK_H__
+#ifndef __MALLOC_TRACK_RING_BUFFER_H__
+#define __MALLOC_TRACK_RING_BUFFER_H__
 
-#include <stdio.h>
-#include <assert.h>
+#include "record.h"
 
-#ifndef NDEBUG
-#define DEBUG(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define DEBUG(...) {}
-#endif
+void ring_buffer_new();
 
-#ifndef NDEBUG
-#define DEBUG_ASSERT(x) assert(x)
-#else
-#define DEBUG_ASSERT(x) {};
-#endif
+void ring_buffer_delete();
 
-void *mt_malloc(size_t size);
-void mt_free(void *p);
+void ring_buffer_insert_lock_free(malloc_track_record_t *record);
 
 #endif

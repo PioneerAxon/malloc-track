@@ -18,25 +18,34 @@
  *
  */
 
-#ifndef __MALLOC_TRACK_H__
-#define __MALLOC_TRACK_H__
+#ifndef __MALLOC_TRACK_RECORD_H__
+#define __MALLOC_TRACK_RECORD_H__
 
-#include <stdio.h>
-#include <assert.h>
+#include <inttypes.h>
+#include <sys/types.h>
 
-#ifndef NDEBUG
-#define DEBUG(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define DEBUG(...) {}
-#endif
+#include "malloc_track.h"
 
-#ifndef NDEBUG
-#define DEBUG_ASSERT(x) assert(x)
-#else
-#define DEBUG_ASSERT(x) {};
-#endif
+enum
+{
+	kMallocRecord,
+	kFreeRecord
+};
 
-void *mt_malloc(size_t size);
-void mt_free(void *p);
+typedef struct malloc_track_record
+{
+	uint64_t timestamp;
+	int32_t type;
+	void *address;
+	size_t size;
+	pid_t thread_id;
+	uint32_t stack_entries;
+	void *frames[0];
+} malloc_track_record_t;
+
+void record_create_malloc(void *p, size_t size);
+void record_create_free(void *p);
+
+uint32_t malloc_track_record_t_size(malloc_track_record_t *record);
 
 #endif

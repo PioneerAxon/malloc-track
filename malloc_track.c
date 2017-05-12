@@ -1,5 +1,4 @@
 /*
- *
  * Copyright 2017 Arth Patel (PioneerAxon) <arth.svnit@gmail.com>
  *
  * This file is part of MallocTrack.
@@ -16,7 +15,8 @@
  *
  * You should have received a copy of the GNU Lesser General Public License
  * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ */
 
 #define _GNU_SOURCE
 
@@ -25,27 +25,31 @@
 #include <assert.h>
 
 #include "malloc_track.h"
+#include "ring_buffer.h"
+#include "record.h"
 
 static void* (*real_malloc)(size_t)=NULL;
 static void (*real_free)(void*)=NULL;
 
-static void mtrace_init(void)
+static void mt_init(void)
 {
 	real_malloc = dlsym(RTLD_NEXT, "malloc");
 	real_free = dlsym(RTLD_NEXT, "free");
 	assert(real_free && real_malloc);
+	ring_buffer_new();
 }
 
 void *malloc(size_t size)
 {
 	if(!real_malloc)
 	{
-		mtrace_init();
+		mt_init();
 	}
 
 	void *p = NULL;
 	p = real_malloc(size);
 	DEBUG("malloc(%d): %p\n", size, p);
+	record_create_malloc(p, size);
 	return p;
 }
 
@@ -53,9 +57,22 @@ void free(void* p)
 {
 	if (!real_free)
 	{
-		mtrace_init();
+		mt_init();
 	}
 
 	DEBUG("free: %p\n", p);
+	record_create_free(p);
+	real_free(p);
+}
+
+void *mt_malloc(size_t size)
+{
+	DEBUG_ASSERT(real_malloc);
+	return real_malloc(size);
+}
+
+void mt_free(void *p)
+{
+	DEBUG_ASSERT(real_free);
 	real_free(p);
 }
