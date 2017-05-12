@@ -18,44 +18,13 @@
  * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define _GNU_SOURCE
+#ifndef __MALLOC_TRACK_H__
+#define __MALLOC_TRACK_H__
 
-#include <stdio.h>
-#include <dlfcn.h>
-#include <assert.h>
+#ifndef NDEBUG
+#define DEBUG(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define DEBUG(...) {}
+#endif
 
-#include "malloc_track.h"
-
-static void* (*real_malloc)(size_t)=NULL;
-static void (*real_free)(void*)=NULL;
-
-static void mtrace_init(void)
-{
-	real_malloc = dlsym(RTLD_NEXT, "malloc");
-	real_free = dlsym(RTLD_NEXT, "free");
-	assert(real_free && real_malloc);
-}
-
-void *malloc(size_t size)
-{
-	if(!real_malloc)
-	{
-		mtrace_init();
-	}
-
-	void *p = NULL;
-	p = real_malloc(size);
-	DEBUG("malloc(%d): %p\n", size, p);
-	return p;
-}
-
-void free(void* p)
-{
-	if (!real_free)
-	{
-		mtrace_init();
-	}
-
-	DEBUG("free: %p\n", p);
-	real_free(p);
-}
+#endif

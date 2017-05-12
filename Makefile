@@ -1,8 +1,12 @@
-all:build
-	cd build; cmake ..; make
+all: debug release
 
-build:
-	mkdir build
+debug:
+	mkdir debug
+	cd debug; cmake -DCMAKE_BUILD_TYPE=Debug ..; make
+
+release:
+	mkdir release
+	cd release; cmake -DCMAKE_BUILD_TYPE=Release ..; make
 
 clean:
-	rm -rf build
+	rm -rf debug release
