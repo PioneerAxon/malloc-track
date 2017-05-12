@@ -22,10 +22,13 @@
 #include <unistd.h>
 #include <time.h>
 #include <inttypes.h>
+#include <execinfo.h>
 
 #include "malloc_track.h"
 #include "record.h"
 #include "ring_buffer.h"
+
+static const uint32_t record_max_stack_depth = 0;
 
 uint64_t record_get_time_usecs()
 {
@@ -36,14 +39,14 @@ uint64_t record_get_time_usecs()
 
 void record_create_malloc(void *p, size_t size)
 {
-	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t));
+	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
 	assert(record);
 	record->timestamp = record_get_time_usecs();
 	record->type = kMallocRecord;
-	record->address = p;
+	record->address = (uint64_t)p;
 	record->size = size;
 	record->thread_id = syscall(__NR_gettid);
-	record->stack_entries = 0;
+	record->stack_entries = backtrace((void**)record->frames, record_max_stack_depth);
 
 	ring_buffer_insert_lock_free(record);
 	mt_free(record);
@@ -51,14 +54,14 @@ void record_create_malloc(void *p, size_t size)
 
 void record_create_free(void *p)
 {
-	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t));
+	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
 	assert(record);
 	record->timestamp = record_get_time_usecs();
 	record->type = kFreeRecord;
-	record->address = p;
+	record->address = (uint64_t)p;
 	record->size = 0;
 	record->thread_id = syscall(__NR_gettid);
-	record->stack_entries = 0;
+	record->stack_entries = backtrace((void**)record->frames, record_max_stack_depth);
 
 	ring_buffer_insert_lock_free(record);
 	mt_free(record);
@@ -67,5 +70,5 @@ void record_create_free(void *p)
 uint32_t malloc_track_record_t_size(malloc_track_record_t *record)
 {
 	DEBUG_ASSERT(record);
-	return sizeof(malloc_track_record_t) + (record->stack_entries * sizeof(void*));
+	return sizeof(malloc_track_record_t) + (record->stack_entries * sizeof(uint64_t));
 }

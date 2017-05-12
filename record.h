@@ -36,11 +36,11 @@ typedef struct malloc_track_record
 {
 	uint64_t timestamp;
 	int32_t type;
-	void *address;
-	size_t size;
-	pid_t thread_id;
 	uint32_t stack_entries;
-	void *frames[0];
+	uint64_t address;
+	uint64_t size;
+	uint64_t thread_id;
+	uint64_t frames[0];
 } malloc_track_record_t;
 
 void record_create_malloc(void *p, size_t size);
