@@ -28,7 +28,9 @@
 #include "record.h"
 #include "ring_buffer.h"
 
-static const uint32_t record_max_stack_depth = 0;
+static const uint32_t record_max_stack_depth = 10;
+static int32_t backtrace_initiated = 0;
+static int32_t backtrace_initiating = 0;
 
 uint64_t record_get_time_usecs()
 {
@@ -37,32 +39,51 @@ uint64_t record_get_time_usecs()
 	return (now.tv_sec * 1000000ull) + (now.tv_nsec / 1000ull);
 }
 
+static void fill_backtrace(malloc_track_record_t *record)
+{
+	if (backtrace_initiating)
+	{
+		record->stack_entries = 0;
+	}
+	else
+	{
+		if (!backtrace_initiated)
+		{
+			backtrace_initiating = 1;
+		}
+		record->stack_entries = backtrace((void**)record->frames, record_max_stack_depth);
+		if (!backtrace_initiated)
+		{
+			backtrace_initiated = 1;
+			backtrace_initiating = 0;
+		}
+	}
+}
+
 void record_create_malloc(void *p, size_t size)
 {
-	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
+	malloc_track_record_t *record = (malloc_track_record_t*)mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
 	assert(record);
 	record->timestamp = record_get_time_usecs();
 	record->type = kMallocRecord;
 	record->address = (uint64_t)p;
 	record->size = size;
 	record->thread_id = syscall(__NR_gettid);
-	record->stack_entries = backtrace((void**)record->frames, record_max_stack_depth);
-
+	fill_backtrace(record);
 	ring_buffer_insert_lock_free(record);
 	mt_free(record);
 }
 
 void record_create_free(void *p)
 {
-	malloc_track_record_t *record = mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
+	malloc_track_record_t *record = (malloc_track_record_t*)mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
 	assert(record);
 	record->timestamp = record_get_time_usecs();
 	record->type = kFreeRecord;
 	record->address = (uint64_t)p;
 	record->size = 0;
 	record->thread_id = syscall(__NR_gettid);
-	record->stack_entries = backtrace((void**)record->frames, record_max_stack_depth);
-
+	fill_backtrace(record);
 	ring_buffer_insert_lock_free(record);
 	mt_free(record);
 }

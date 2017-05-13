@@ -22,6 +22,8 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 #include "ring_buffer.h"
 
@@ -37,6 +39,9 @@ static uint64_t ring_buffer_write_offset_ = 0;
 static uint64_t ring_buffer_flush_offset_ = 0;
 static uint64_t ring_buffer_active_bytes_ = 0;
 static short ring_buffer_flush_active_ = 0;
+
+static char ring_buffer_flush_file_name[] = "/tmp/binarydump";
+static int64_t ring_buffer_flush_fd_;
 
 static inline uint64_t max_u64(uint64_t a, uint64_t b)
 {
@@ -56,6 +61,13 @@ void ring_buffer_new()
 	ring_buffer_ = mt_malloc (ring_buffer_size_);
 	assert(ring_buffer_);
 	DEBUG("Allocated ring buffer of size %llu\n", ring_buffer_size_);
+	DEBUG("Opening file %s\n", ring_buffer_flush_file_name);
+	ring_buffer_flush_fd_ = open(ring_buffer_flush_file_name, O_RDWR | O_CREAT | O_TRUNC);
+	DEBUG_ASSERT(ring_buffer_flush_fd_ != -1);
+	if (ring_buffer_flush_fd_ == -1)
+	{
+		exit(1);
+	}
 }
 
 void ring_buffer_delete()
@@ -97,7 +109,7 @@ void ring_buffer_maybe_dump_bytes(uint64_t active_bytes)
 	}
 	while (active_bytes > ring_buffer_max_active_bytes)
 	{
-		uint64_t bytes_written = write(1, ring_buffer_ + ring_buffer_flush_offset_, min_u64(ring_buffer_size_ - ring_buffer_flush_offset_, ring_buffer_flush_batch_size));
+		uint64_t bytes_written = write(ring_buffer_flush_fd_, ring_buffer_ + ring_buffer_flush_offset_, min_u64(ring_buffer_size_ - ring_buffer_flush_offset_, ring_buffer_flush_batch_size));
 		ring_buffer_flush_offset_ += bytes_written;
 		ring_buffer_flush_offset_ &= ring_buffer_offset_mask_;
 		DEBUG("Flushed %llu bytes\n", bytes_written);
