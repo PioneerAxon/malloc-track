@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "malloc_track.h"
 #include "ring_buffer.h"
@@ -30,6 +31,7 @@
 
 static void* (*real_malloc)(size_t)=NULL;
 static void (*real_free)(void*)=NULL;
+static int32_t malloc_track_destroying_ = 0;
 
 static void mt_init(void)
 {
@@ -37,6 +39,12 @@ static void mt_init(void)
 	real_free = dlsym(RTLD_NEXT, "free");
 	assert(real_free && real_malloc);
 	ring_buffer_new();
+}
+
+static void __attribute__((destructor)) mt_destroy(void)
+{
+	malloc_track_destroying_ = 1;
+	ring_buffer_delete();
 }
 
 void *malloc(size_t size)
@@ -48,8 +56,11 @@ void *malloc(size_t size)
 
 	void *p = NULL;
 	p = real_malloc(size);
-	DEBUG("malloc(%d): %p\n", size, p);
-	record_create_malloc(p, size);
+	if (!malloc_track_destroying_)
+	{
+		DEBUG("malloc(%d): %p\n", size, p);
+		record_create_malloc(p, size);
+	}
 	return p;
 }
 
@@ -60,8 +71,11 @@ void free(void* p)
 		mt_init();
 	}
 
-	DEBUG("free: %p\n", p);
-	record_create_free(p);
+	if (!malloc_track_destroying_)
+	{
+		DEBUG("free: %p\n", p);
+		record_create_free(p);
+	}
 	real_free(p);
 }
 

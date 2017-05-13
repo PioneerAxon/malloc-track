@@ -31,4 +31,6 @@ void ring_buffer_insert_lock_free(malloc_track_record_t *record);
 
 void ring_buffer_maybe_dump_bytes(uint64_t active_bytes);
 
+void ring_buffer_flush_all();
+
 #endif

@@ -72,6 +72,10 @@ void ring_buffer_new()
 
 void ring_buffer_delete()
 {
+	DEBUG("Destroying ring buffer. Flushing all records\n");
+	ring_buffer_flush_all();
+	DEBUG("Closing file %s\n", ring_buffer_flush_file_name);
+	close(ring_buffer_flush_fd_);
 	assert(ring_buffer_);
 	mt_free(ring_buffer_);
 	ring_buffer_size_ = 0;
@@ -93,7 +97,7 @@ void ring_buffer_insert_lock_free(malloc_track_record_t *record)
 		memcpy(ring_buffer_ + write_offset, record, bytes_to_write);
 		bytes_left -= bytes_to_write;
 	}
-	uint64_t active_bytes = __sync_fetch_and_add(&ring_buffer_active_bytes_, size);
+	uint64_t active_bytes = __sync_add_and_fetch(&ring_buffer_active_bytes_, size);
 	DEBUG("Active bytes in ring buffer : %llu\n", active_bytes);
 	if (active_bytes > ring_buffer_max_active_bytes)
 	{
@@ -114,7 +118,22 @@ void ring_buffer_maybe_dump_bytes(uint64_t active_bytes)
 		ring_buffer_flush_offset_ &= ring_buffer_offset_mask_;
 		DEBUG("Flushed %llu bytes\n", bytes_written);
 
-		active_bytes = __sync_fetch_and_sub(&ring_buffer_active_bytes_, bytes_written);
+		active_bytes = __sync_sub_and_fetch(&ring_buffer_active_bytes_, bytes_written);
+	}
+	ring_buffer_flush_active_ = 0;
+}
+
+void ring_buffer_flush_all()
+{
+	while(!__sync_bool_compare_and_swap(&ring_buffer_flush_active_, 0, 1));
+	uint64_t active_bytes = __sync_fetch_and_add(&ring_buffer_active_bytes_, 0);
+	while (active_bytes > 0)
+	{
+		uint64_t bytes_written = write(ring_buffer_flush_fd_, ring_buffer_ + ring_buffer_flush_offset_, min_u64(min_u64(ring_buffer_size_ - ring_buffer_flush_offset_, ring_buffer_flush_batch_size), active_bytes));
+		ring_buffer_flush_offset_ += bytes_written;
+		ring_buffer_flush_offset_ &= ring_buffer_offset_mask_;
+		active_bytes = __sync_sub_and_fetch(&ring_buffer_active_bytes_, bytes_written);
+		DEBUG("Flushed %llu bytes. %llu bytes remaining.\n", bytes_written, active_bytes);
 	}
 	ring_buffer_flush_active_ = 0;
 }
