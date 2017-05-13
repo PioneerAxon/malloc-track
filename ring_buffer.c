@@ -62,7 +62,7 @@ void ring_buffer_new()
 	assert(ring_buffer_);
 	DEBUG("Allocated ring buffer of size %llu\n", ring_buffer_size_);
 	DEBUG("Opening file %s\n", ring_buffer_flush_file_name);
-	ring_buffer_flush_fd_ = open(ring_buffer_flush_file_name, O_RDWR | O_CREAT | O_TRUNC);
+	ring_buffer_flush_fd_ = open(ring_buffer_flush_file_name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	DEBUG_ASSERT(ring_buffer_flush_fd_ != -1);
 	if (ring_buffer_flush_fd_ == -1)
 	{
