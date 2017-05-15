@@ -74,16 +74,22 @@ int main(int argc, char** argv)
 				premature_eof();
 			}
 		}
-		if (record.type == kMallocRecord)
-		{
-			assert(!live_memory[record.address]);
-			live_memory[record.address] = cur;
-		}
-		else if (record.type == kFreeRecord && record.address != 0)
+		if (record.type == kFreeRecord && record.address != 0)
 		{
 			assert(live_memory[record.address]);
 			free(live_memory[record.address]);
 			live_memory.erase(record.address);
+		}
+		if (record.type == kReallocRecord && record.old_address != 0)
+		{
+			assert(live_memory[record.old_address]);
+			free(live_memory[record.old_address]);
+			live_memory.erase(record.old_address);
+		}
+		if (record.type == kMallocRecord || record.type == kReallocRecord || record.type == kCallocRecord)
+		{
+			assert(!live_memory[record.address]);
+			live_memory[record.address] = cur;
 		}
 	}
 	close(fd);

@@ -88,6 +88,36 @@ void record_create_free(void *p)
 	mt_free(record);
 }
 
+void record_create_calloc(void *p, size_t nmemb, size_t size)
+{
+	malloc_track_record_t *record = (malloc_track_record_t*)mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
+	assert(record);
+	record->timestamp = record_get_time_usecs();
+	record->type = kCallocRecord;
+	record->address = (uint64_t)p;
+	record->size = size;
+	record->nmemb = nmemb;
+	record->thread_id = syscall(__NR_gettid);
+	fill_backtrace(record);
+	ring_buffer_insert_lock_free(record);
+	mt_free(record);
+}
+
+void record_create_realloc(void *p, void *ptr, size_t size)
+{
+	malloc_track_record_t *record = (malloc_track_record_t*)mt_malloc(sizeof(malloc_track_record_t) + sizeof(uint64_t) * record_max_stack_depth);
+	assert(record);
+	record->timestamp = record_get_time_usecs();
+	record->type = kReallocRecord;
+	record->address = (uint64_t)p;
+	record->size = size;
+	record->old_address = (uint64_t)ptr;
+	record->thread_id = syscall(__NR_gettid);
+	fill_backtrace(record);
+	ring_buffer_insert_lock_free(record);
+	mt_free(record);
+}
+
 uint32_t malloc_track_record_t_size(malloc_track_record_t *record)
 {
 	DEBUG_ASSERT(record);

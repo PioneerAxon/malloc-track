@@ -55,6 +55,8 @@ int main(int argc, char** argv)
 
 	int64_t total_records = 0;
 	int64_t malloc_count = 0;
+	int64_t calloc_count = 0;
+	int64_t realloc_count = 0;
 	int64_t free_count = 0;
 
 	malloc_track_record_t record;
@@ -82,8 +84,12 @@ int main(int argc, char** argv)
 			malloc_count++;
 		else if (record.type == kFreeRecord && record.address != 0)
 			free_count++;
+		else if (record.type == kCallocRecord)
+			calloc_count++;
+		else if (record.type == kReallocRecord)
+			realloc_count++;
 	}
 	close(fd);
-	fprintf(stderr, "Total records : %lld\n      malloc  : %lld\n      free    : %lld\n", total_records, malloc_count, free_count);
+	fprintf(stderr, "Total records : %lld\n      malloc  : %lld\n      calloc  : %lld\n      realloc : %lld\n      free    : %lld\n", total_records, malloc_count, calloc_count, realloc_count, free_count);
 	return 0;
 }

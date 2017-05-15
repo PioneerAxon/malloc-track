@@ -27,7 +27,9 @@ enum
 {
 	kInvalidRecord,
 	kMallocRecord,
-	kFreeRecord
+	kFreeRecord,
+	kCallocRecord,
+	kReallocRecord
 };
 
 typedef struct malloc_track_record
@@ -37,6 +39,11 @@ typedef struct malloc_track_record
 	uint32_t stack_entries;
 	uint64_t address;
 	uint64_t size;
+	union
+	{
+		uint64_t nmemb;
+		uint64_t old_address;
+	};
 	uint64_t thread_id;
 	uint64_t frames[0];
 } malloc_track_record_t;

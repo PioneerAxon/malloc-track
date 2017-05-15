@@ -28,6 +28,8 @@
 
 void record_create_malloc(void *p, size_t size);
 void record_create_free(void *p);
+void record_create_calloc(void *p, size_t nmemb, size_t size);
+void record_create_realloc(void *p, void *ptr, size_t size);
 
 uint32_t malloc_track_record_t_size(malloc_track_record_t *record);
 
