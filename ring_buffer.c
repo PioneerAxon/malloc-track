@@ -31,7 +31,7 @@ static const int32_t ring_buffer_size_bytes_exp = 24; //16 MiB
 static const int32_t ring_buffer_max_active_bytes = 1 << 20; // 1 MiB
 static const int32_t ring_buffer_flush_batch_size = 1 << 12; // 4KiB
 
-static void* ring_buffer_ = NULL;
+static uint8_t* ring_buffer_ = NULL;
 static uint64_t ring_buffer_size_ = 0;
 static uint64_t ring_buffer_offset_mask_ = 0;
 
@@ -94,8 +94,11 @@ void ring_buffer_insert_lock_free(malloc_track_record_t *record)
 	while (bytes_left)
 	{
 		uint32_t bytes_to_write = min_u64(ring_buffer_size_ - write_offset, bytes_left);
-		memcpy(ring_buffer_ + write_offset, record, bytes_to_write);
+		memcpy(ring_buffer_ + write_offset, ((uint8_t*)record) + size - bytes_left, bytes_to_write);
 		bytes_left -= bytes_to_write;
+		write_offset += bytes_to_write;
+		if (write_offset >= ring_buffer_size_)
+			write_offset = 0;
 	}
 	uint64_t active_bytes = __sync_add_and_fetch(&ring_buffer_active_bytes_, size);
 	DEBUG("Active bytes in ring buffer : %llu\n", active_bytes);
