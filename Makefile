@@ -1,12 +1,16 @@
-all: debug release
+ifndef BUILD_TYPE
+BUILD_TYPE=Debug
+endif
 
-debug:
-	mkdir debug
-	cd debug; cmake -DCMAKE_BUILD_TYPE=Debug ..; make
+ifndef VERBOSE
+VERBOSE=0
+endif
 
-release:
-	mkdir release
-	cd release; cmake -DCMAKE_BUILD_TYPE=Release ..; make
+.SILENT:
+
+all:
+	mkdir -p build
+	cd build; cmake -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ..; make VERBOSE=$(VERBOSE)
 
 clean:
-	rm -rf debug release
+	rm -rf build
