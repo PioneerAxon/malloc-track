@@ -55,14 +55,17 @@ static inline uint64_t min_u64(uint64_t a, uint64_t b)
 
 void ring_buffer_new()
 {
+	pid_t pid = getpid();
 	assert(ring_buffer_ == NULL);
 	ring_buffer_size_ = 1 << ring_buffer_size_bytes_exp;
 	ring_buffer_offset_mask_ = ring_buffer_size_ - 1;
-	ring_buffer_ = mt_malloc (ring_buffer_size_);
+	ring_buffer_ = (void*)mt_malloc (ring_buffer_size_);
 	assert(ring_buffer_);
 	DEBUG("Allocated ring buffer of size %llu\n", ring_buffer_size_);
-	DEBUG("Opening file %s\n", ring_buffer_flush_file_name);
-	ring_buffer_flush_fd_ = open(ring_buffer_flush_file_name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	DEBUG("Opening file %s for pid %d\n", ring_buffer_flush_file_name, pid);
+	char ring_buffer_flush_file_name_with_pid[sizeof(ring_buffer_flush_file_name) + 64];
+	snprintf(ring_buffer_flush_file_name_with_pid, sizeof(ring_buffer_flush_file_name) + 64, "%s_%d", ring_buffer_flush_file_name, pid);
+	ring_buffer_flush_fd_ = open(ring_buffer_flush_file_name_with_pid, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	DEBUG_ASSERT(ring_buffer_flush_fd_ != -1);
 	if (ring_buffer_flush_fd_ == -1)
 	{
@@ -72,9 +75,10 @@ void ring_buffer_new()
 
 void ring_buffer_delete()
 {
+	pid_t pid = getpid();
 	DEBUG("Destroying ring buffer. Flushing all records\n");
 	ring_buffer_flush_all();
-	DEBUG("Closing file %s\n", ring_buffer_flush_file_name);
+	DEBUG("Closing file %s for pid %d\n", ring_buffer_flush_file_name, pid);
 	close(ring_buffer_flush_fd_);
 	assert(ring_buffer_);
 	mt_free(ring_buffer_);
