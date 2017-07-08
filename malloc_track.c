@@ -21,6 +21,7 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <dlfcn.h>
 #include <assert.h>
 #include <inttypes.h>
@@ -31,6 +32,7 @@
 #include "record.h"
 
 #define init_buffer_max_size 4096
+#define abort_on_destroy 1
 
 static void* (*real_malloc)(size_t)=NULL;
 static void (*real_free)(void*)=NULL;
@@ -58,6 +60,10 @@ static void __attribute__((destructor)) mt_destroy(void)
 {
 	malloc_track_destroying_ = 1;
 	ring_buffer_delete();
+	if (abort_on_destroy)
+	{
+		abort();
+	}
 }
 
 void *malloc(size_t size)
